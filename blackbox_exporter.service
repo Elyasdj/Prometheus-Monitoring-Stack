@@ -1,0 +1,14 @@
+[Unit]
+Description=Prometheus Server blackex
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+User=exporter
+Group=exporter
+Type=simple
+ExecStart=/usr/local/bin/blackbox_exporter \
+--config.file=/etc/prometheus/blackbox.yml
+
+[Install]
+WantedBy=multi-user.target
