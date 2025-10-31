@@ -1,426 +1,622 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Production Monitoring Stack with Prometheus & Grafana</title>
-    <style>
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-            line-height: 1.6;
-            background-color: #f6f8fa;
-            color: #24292e;
-            max-width: 980px;
-            margin: 20px auto;
-            padding: 20px;
-        }
-        h1, h2, h3 {
-            border-bottom: 2px solid #eaecef;
-            padding-bottom: .3em;
-            margin-top: 24px;
-            margin-bottom: 16px;
-            font-weight: 600;
-        }
-        h1 { font-size: 2.5em; }
-        h2 { font-size: 2em; }
-        h3 { font-size: 1.5em; }
-        pre {
-            background-color: #ffffff;
-            border: 1px solid #dfe2e5;
-            border-radius: 6px;
-            padding: 16px;
-            overflow: auto;
-            line-height: 1.45;
-        }
-        code {
-            font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, Courier, monospace;
-            font-size: 85%;
-            background-color: rgba(27,31,35,.05);
-            border-radius: 3px;
-            padding: .2em .4em;
-        }
-        pre > code {
-            font-size: 100%;
-            background-color: transparent;
-            border: 0;
-            padding: 0;
-        }
-        ul, ol {
-            padding-left: 2em;
-        }
-        li {
-            margin-bottom: 8px;
-        }
-        hr {
-            height: .25em;
-            padding: 0;
-            margin: 24px 0;
-            background-color: #e1e4e8;
-            border: 0;
-        }
-    </style>
-</head>
-<body>
+# 📊 Prometheus Monitoring Stack - Complete Setup Guide
 
-    <h1>Production Monitoring Stack with Prometheus & Grafana</h1>
+A comprehensive production-ready guide for deploying and configuring Prometheus monitoring infrastructure with exporters and Grafana visualization.
 
-    <p>This repository contains the configuration files and step-by-step instructions for deploying a robust, production-ready monitoring stack using Prometheus, Grafana, and various exporters.</p>
+[![Prometheus](https://img.shields.io/badge/Prometheus-v3.5.0-orange?logo=prometheus)](https://prometheus.io/)
+[![Grafana](https://img.shields.io/badge/Grafana-v12.2.1-orange?logo=grafana)](https://grafana.com/)
+[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-    <hr>
+---
 
-    <h2>1. Core Monitoring Concepts</h2>
+## 📑 Table of Contents
 
-    <h3>What is Monitoring?</h3>
-    <p>Monitoring is the process of collecting, processing, and displaying real-time data about a system's health and performance.</p>
+- [Introduction](#-introduction)
+- [Core Concepts](#-core-concepts)
+- [Architecture](#-architecture)
+- [Prerequisites](#-prerequisites)
+- [Installation & Configuration](#-installation--configuration)
+  - [Prometheus Server](#1-prometheus-server)
+  - [Node Exporter](#2-node-exporter)
+  - [Blackbox Exporter](#3-blackbox-exporter)
+  - [cAdvisor](#4-cadvisor)
+  - [Grafana](#5-grafana)
+- [Security Hardening](#-security-hardening)
+- [Verification](#-verification)
+- [Configuration Files](#-configuration-files)
 
-    <h3>Use Cases</h3>
-    <ul>
-        <li>Alerting and Debugging</li>
-        <li>Performance Analysis</li>
-        <li>Capacity Planning</li>
-        <li>System Observability</li>
-    </ul>
+---
 
-    <h3>Types of Monitoring</h3>
-    <ul>
-        <li><strong>Blackbox:</strong> Probing a system from the outside to test user-facing behavior (e.g., "Is the website up?").</li>
-        <li><strong>Whitebox:</strong> Monitoring a system from the inside using internal metrics and logs (e.g., "What is the CPU usage?").</li>
-    </ul>
+## 🔍 Introduction
 
-    <h3>What are Metrics?</h3>
-    <p>A metric is a numerical measurement of a system's property over time. Prometheus uses a <strong>time-series</strong> model for metrics.</p>
+### What is Monitoring?
+Monitoring is the systematic observation and recording of system metrics to ensure reliability, performance, and availability of services.
 
-    <h3>Types of Metric Collection</h3>
-    <ul>
-        <li><strong>Pull-based:</strong> The monitoring server (Prometheus) periodically scrapes (pulls) metrics from target endpoints.</li>
-        <li><strong>Push-based:</strong> Target services actively push their metrics to a central gateway.</li>
-    </ul>
+### Use Cases
+- Performance tracking and optimization
+- Incident detection and alerting
+- Capacity planning and resource management
+- SLA compliance verification
+- Root cause analysis
 
-    <hr>
+---
 
-    <h2>2. Monitoring Strategy</h2>
+## 📚 Core Concepts
 
-    <h3>What to Measure?</h3>
-    <p>Three popular methodologies for identifying key metrics:</p>
-    <ul>
-        <li><strong>RED Method (Tom Wilkie):</strong> For microservices.
-            <ul>
-                <li><strong>R</strong>ate: The number of requests per second.</li>
-                <li><strong>E</strong>rrors: The number of failing requests.</li>
-                <li><strong>D</strong>uration: The amount of time requests take.</li>
-            </ul>
-        </li>
-        <li><strong>USE Method (Brendan Gregg):</strong> For system resources.
-            <ul>
-                <li><strong>U</strong>tilization: How busy the resource is.</li>
-                <li><strong>S</strong>aturation: The degree to which the resource has excess work queued.</li>
-                <li><strong>E</strong>rrors: The count of error events.</li>
-            </ul>
-        </li>
-        <li><strong>The Four Golden Signals (Google SRE):</strong>
-            <ul>
-                <li><strong>Latency:</strong> The time it takes to service a request.</li>
-                <li><strong>Traffic:</strong> A measure of demand on the system.</li>
-                <li><strong>Errors:</strong> The rate of requests that fail.</li>
-                <li><strong>Saturation:</strong> How "full" your service is.</li>
-            </ul>
-        </li>
-    </ul>
+### Types of Monitoring
 
-    <h3>Prerequisites for Implementation</h3>
-    <p>Before implementing monitoring in production, the business should have:</p>
-    <ol>
-        <li>A clear <strong>Service Flow</strong> diagram.</li>
-        <li>A <strong>UMT (User-Machine-Task) Diagram</strong>.</li>
-        <li>A detailed <strong>Network Diagram</strong>.</li>
-    </ol>
+**Blackbox Monitoring**
+External monitoring that tests services from the user's perspective without internal system knowledge.
 
-    <hr>
+**Whitebox Monitoring**
+Internal monitoring that uses system metrics and logs to understand service behavior.
 
-    <h2>3. Stack Architecture</h2>
-    
-    <p></p>
+### What are Metrics?
+Numerical measurements collected over time that represent the state and performance of a system.
 
-    <p>This stack includes the following components:</p>
-    <ul>
-        <li><strong>Prometheus Server:</strong> The core time-series database and scraping engine.</li>
-        <li><strong>Node Exporter:</strong> Gathers hardware and OS metrics from Unix-like hosts. (Use <strong>WMI Exporter</strong> for Windows).</li>
-        <li><strong>Blackbox Exporter:</strong> Probes endpoints over <code>http</code>, <code>tcp</code>, <code>icmp</code>, and <code>dns</code> for blackbox monitoring.</li>
-        <li><strong>cAdvisor:</strong> Collects, processes, and exports resource usage and performance data for running containers.</li>
-        <li><strong>Grafana:</strong> The visualization platform for querying and displaying metrics in dashboards.</li>
-    </ul>
+**Prometheus** = Time series metrics database optimized for monitoring and alerting.
 
-    <hr>
+### Metrics Collection Methods
 
-    <h2>4. Installation & Configuration</h2>
+| Type | Description |
+|------|-------------|
+| **Pull-Based** | Prometheus scrapes metrics from targets at configured intervals |
+| **Push-Based** | Applications push metrics to a collector (Pushgateway) |
 
-    <p>All installation steps below are for <strong>Debian</strong> using <strong>binary files</strong>, unless otherwise noted.</p>
+### What to Measure?
 
-    <h3>1. Prometheus Server</h3>
-    <ul>
-        <li><strong>Default Port:</strong> <code>9090</code></li>
-    </ul>
+#### 🎯 The 4 Golden Signals (Google)
+1. **Latency** - Time to service requests
+2. **Traffic** - Demand on your system
+3. **Errors** - Rate of failed requests
+4. **Saturation** - Resource utilization
 
-    <strong>Installation (Binary - Debian):</strong>
-<pre><code># Install dependencies
-sudo apt update -y && sudo apt install -y chrony firewalld jq 
+#### 🔧 USE Method (Brendan Gregg)
+- **U**tilization - Resource busy time
+- **S**aturation - Work queue length
+- **E**rrors - Error events
 
-# Download and extract
+#### 🔴 RED Method (Tom Wilkie)
+- **R**ate - Requests per second
+- **E**rrors - Failed requests rate
+- **D**uration - Request latency
+
+---
+
+## 🏗️ Architecture
+
+### Before Production Implementation
+
+Ensure your organization has:
+1. **Service Flow Diagram** - Understanding of service dependencies
+2. **UML Diagrams** - System component relationships
+3. **Network Topology** - Infrastructure layout and connections
+
+### Prometheus Architecture Overview
+
+```
+┌─────────────┐     ┌──────────────┐     ┌─────────────┐
+│   Targets   │────▶│  Prometheus  │────▶│   Grafana   │
+│  (Exporters)│     │    Server    │     │ (Visualize) │
+└─────────────┘     └──────────────┘     └─────────────┘
+       │                    │
+       │                    ▼
+       │            ┌──────────────┐
+       │            │ AlertManager │
+       │            └──────────────┘
+       ▼
+┌─────────────────────────────────────┐
+│  • Node Exporter (System Metrics)   │
+│  • Blackbox Exporter (Probing)      │
+│  • cAdvisor (Container Metrics)     │
+│  • Custom Exporters                 │
+└─────────────────────────────────────┘
+```
+
+---
+
+## ⚙️ Prerequisites
+
+- **OS**: Debian/Ubuntu or RedHat/CentOS
+- **Packages**: `chrony`, `firewalld`, `jq`, `apache2-utils`/`httpd-tools`
+- **Permissions**: Root or sudo access
+- **Network**: Appropriate ports open (9090, 9100, 9115, 3000, 8080)
+- **Optional**: Docker (for cAdvisor)
+
+---
+
+## 🚀 Installation & Configuration
+
+### 1. Prometheus Server
+
+**Default Port**: `9090`
+
+#### Installation Steps (Debian)
+
+```bash
+# Update system and install dependencies
+sudo apt update -y && sudo apt install -y chrony firewalld jq
+
+# Download Prometheus
 wget https://github.com/prometheus/prometheus/releases/download/v3.5.0/prometheus-3.5.0.linux-amd64.tar.gz
 tar -xvf prometheus-3.5.0.linux-amd64.tar.gz
 
 # Create user and directories
-sudo useradd -s -r /sbin/nologin prometheus
-sudo mkdir /etc/prometheus && sudo mkdir /etc/prometheus/tls 
-sudo mkdir /var/lib/prometheus
-sudo chown prometheus. /etc/prometheus /etc/prometheus/tls /var/lib/prometheus
+sudo useradd -rs /sbin/nologin prometheus
+sudo mkdir -p /etc/prometheus /etc/prometheus/tls /var/lib/prometheus
+
+# Set permissions
+sudo chown prometheus: /etc/prometheus /etc/prometheus/tls /var/lib/prometheus
 sudo chmod 700 /etc/prometheus /etc/prometheus/tls
 sudo chmod 755 /var/lib/prometheus
 
-# Move binaries
+# Install binaries
 cd prometheus-3.5.0.linux-amd64
 sudo mv prometheus promtool /usr/local/bin
-sudo chown prometheus. /usr/local/bin/prom*
-</code></pre>
+sudo chown prometheus: /usr/local/bin/prom*
 
-    <strong>Hardening (TLS & Basic Auth):</strong>
-<pre><code># Open firewall port
-sudo firewall-cmd --add-port=9090/tcp --permanent && sudo firewall-cmd --reload
-
-# Generate self-signed TLS certificate
-openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout prometheus.key -out prometheus.crt -subj "/CN=prometheus.local"
+# Generate TLS certificates
+openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
+  -keyout prometheus.key -out prometheus.crt \
+  -subj "/CN=prometheus.local"
 sudo mv prometheus.crt prometheus.key /etc/prometheus/tls/
-sudo chown prometheus. /etc/prometheus/tls/prometheus.crt 
-sudo chown prometheus. /etc/prometheus/tls/prometheus.key
+sudo chown prometheus: /etc/prometheus/tls/prometheus.{crt,key}
 sudo chmod 644 /etc/prometheus/tls/prometheus.crt
 sudo chmod 600 /etc/prometheus/tls/prometheus.key
 
-# Create web-config file
-sudo touch /etc/prometheus/web-config.yml
-
-# Install apache2-utils and generate a htpasswd hash
+# Configure basic authentication
 sudo apt install apache2-utils
-htpasswd -n -B -b admin abbaseboazar 
-# (Add the generated hash to web-config.yml)
-</code></pre>
+htpasswd -nBb admin abbaseboazar  # Generate password hash
 
-    <strong>Service Management:</strong>
-    <ul>
-        <li>Place <code>prometheus.service</code> in <code>/usr/lib/systemd/system/</code>.</li>
-        <li>Place <code>prometheus.yml</code> in <code>/etc/prometheus/</code>.</li>
-        <li>Place <code>web-config.yml</code> in <code>/etc/prometheus/</code>.</li>
-    </ul>
-<pre><code>sudo systemctl daemon-reload
+# Create configuration files
+sudo -u prometheus vim /etc/prometheus/prometheus.yml
+sudo vim /etc/prometheus/web-config.yml
+sudo vim /usr/lib/systemd/system/prometheus.service
+
+# Configure firewall
+sudo firewall-cmd --add-port=9090/tcp --permanent
+sudo firewall-cmd --reload
+
+# Enable and start service
+sudo systemctl daemon-reload
 sudo systemctl enable --now prometheus.service
-</code></pre>
+```
 
-    <hr>
+#### Verification
+```bash
+sudo systemctl status prometheus.service
+sudo ss -tunlp | grep 9090
+```
 
-    <h3>2. Node Exporter</h3>
-    <ul>
-        <li><strong>Default Port:</strong> <code>9100</code></li>
-        <li><strong>Collects:</strong> Unix-like system metrics (CPU, memory, disk, network).</li>
-    </ul>
+#### Access
+`https://localhost:9090` or `https://your-ip:9090`
 
-    <strong>Installation (Binary - Debian):</strong>
-<pre><code>wget https://github.com/prometheus/node_exporter/releases/download/v1.10.2/node_exporter-1.10.2.linux-amd64.tar.gz
+---
+
+### 2. Node Exporter
+
+**Default Port**: `9100`
+
+#### What is Node Exporter?
+System metrics exporter for Unix-like systems (CPU, memory, disk, network).
+
+**Note**: For Windows, use `WMI_exporter` or `windows_exporter`.
+
+#### Installation Steps (Debian)
+
+```bash
+# Download Node Exporter
+wget https://github.com/prometheus/node_exporter/releases/download/v1.10.2/node_exporter-1.10.2.linux-amd64.tar.gz
 tar -xvf node_exporter-1.10.2.linux-amd64.tar.gz
 
-# Create exporter user
-sudo useradd -s -r /sbin/nologin exporter
+# Create user
+sudo useradd -rs /sbin/nologin exporter
 
-# Move binary
+# Install binary
 cd node_exporter-1.10.2.linux-amd64
 sudo mv node_exporter /usr/local/bin
-sudo chown exporter. /usr/local/bin/node_exporter
+sudo chown exporter: /usr/local/bin/node_exporter
 sudo chmod 755 /usr/local/bin/node_exporter
-</code></pre>
 
-    <strong>Hardening:</strong>
-<pre><code>sudo firewall-cmd --add-port=9100/tcp --permanent && sudo firewall-cmd --reload
-</code></pre>
+# Create systemd service
+sudo vim /usr/lib/systemd/system/node_exporter.service
 
-    <strong>Service Management:</strong>
-    <ul>
-        <li>Place <code>node_exporter.service</code> in <code>/usr/lib/systemd/system/</code>.</li>
-    </ul>
-<pre><code>sudo systemctl daemon-reload
-sudo systemctl enable --now node_exporter.service
-</code></pre>
-
-    <hr>
-
-    <h3>3. Blackbox Exporter</h3>
-    <ul>
-        <li><strong>Default Port:</strong> <code>9115</code></li>
-        <li><strong>Probes:</strong> <code>http</code>, <code>tcp</code>, <code>icmp</code>, <code>dns</code>.</li>
-    </ul>
-
-    <strong>Installation (Binary - Debian):</strong>
-<pre><code>wget https://github.com/prometheus/blackbox_exporter/releases/download/v0.27.0/blackbox_exporter-0.27.0.linux-amd64.tar.gz
-tar -xvf blackbox_exporter-0.27.0.linux-amd64.tar.gz
-cd blackbox_exporter-0.27.0.linux-amd64
-
-# Move binary and config
-sudo mv blackbox_exporter /usr/local/bin
-sudo chown exporter. /usr/local/bin/blackbox_exporter
-sudo chmod 755 /usr/local/bin/blackbox_exporter
-sudo mv blackbox.yml /etc/prometheus
-</code></pre>
-
-    <strong>Hardening:</strong>
-<pre><code>sudo firewall-cmd --add-port=9115/tcp --permanent
+# Configure firewall
+sudo firewall-cmd --add-port=9100/tcp --permanent
 sudo firewall-cmd --reload
-</code></pre>
 
-    <strong>Service Management:</strong>
-    <ul>
-        <li>Place <code>blackbox_exporter.service</code> in <code>/usr/lib/systemd/system/</code>.</li>
-        <li>Place <code>blackbox.yml</code> in <code>/etc/prometheus/</code>.</li>
-    </ul>
-<pre><code>sudo systemctl daemon-reload
+# Enable and start service
+sudo systemctl daemon-reload
+sudo systemctl enable --now node_exporter.service
+```
+
+#### Verification
+```bash
+sudo systemctl status node_exporter.service
+sudo ss -tunlp | grep 9100
+```
+
+#### Access
+`http://localhost:9100/metrics` or `http://your-ip:9100/metrics`
+
+---
+
+### 3. Blackbox Exporter
+
+**Default Port**: `9115`
+
+#### What is Blackbox Exporter?
+Probe-based exporter for external monitoring (HTTP, TCP, ICMP, DNS).
+
+#### Installation Steps (Debian)
+
+```bash
+# Download Blackbox Exporter
+wget https://github.com/prometheus/blackbox_exporter/releases/download/v0.27.0/blackbox_exporter-0.27.0.linux-amd64.tar.gz
+tar -xvf blackbox_exporter-0.27.0.linux-amd64.tar.gz
+
+# Install binary and configuration
+cd blackbox_exporter-0.27.0.linux-amd64
+sudo mv blackbox_exporter /usr/local/bin
+sudo chown exporter: /usr/local/bin/blackbox_exporter
+sudo chmod 755 /usr/local/bin/blackbox_exporter
+
+sudo mv blackbox.yml /etc/prometheus
+sudo vim /etc/prometheus/blackbox.yml
+
+# Create systemd service
+sudo cp /usr/lib/systemd/system/{node,blackbox}_exporter.service
+sudo vim /usr/lib/systemd/system/blackbox_exporter.service
+
+# Configure firewall
+sudo firewall-cmd --add-port=9115/tcp --permanent
+sudo firewall-cmd --reload
+
+# Enable and start service
+sudo systemctl daemon-reload
 sudo systemctl enable --now blackbox_exporter.service
-</code></pre>
+```
 
-    <hr>
+#### Enable Remote ICMP Probing (if needed)
 
-    <h3>4. cAdvisor</h3>
-    <ul>
-        <li><strong>Default Port:</strong> <code>8080</code></li>
-    </ul>
+```bash
+# Check current setting
+sudo sysctl -a | grep ping
+# Output: net.ipv4.ping_group_range=1 0
 
-    <strong>Installation (Docker):</strong>
-<pre><code>docker run -itd \
+# Allow unprivileged ICMP
+sudo vim /etc/sysctl.conf
+# Add: net.ipv4.ping_group_range=0 2147483647
+sudo sysctl -p
+```
+
+#### URL Components Reference
+```
+schema://[subdomain].domain.tld[:Port]/file_path[?param1=value1[&param2=value2]]
+```
+
+#### Example Probes
+```bash
+# ICMP probe
+http://127.0.0.1:9115/probe?module=icmp&target=localhost
+
+# HTTP probe
+http://127.0.0.1:9115/probe?module=http_2xx&target=https://example.com
+```
+
+**Result Interpretation**:
+- `probe_success 1` → ✅ Success
+- `probe_success 0` → ❌ Failure
+
+#### Verification
+```bash
+sudo systemctl status blackbox_exporter.service
+sudo ss -tunlp | grep 9115
+```
+
+#### Access
+`http://localhost:9115` or `http://your-ip:9115`
+
+---
+
+### 4. cAdvisor
+
+**Default Port**: `8080`
+
+#### What is cAdvisor?
+Container metrics exporter for Docker and Kubernetes environments.
+
+#### Installation Steps (Docker)
+
+```bash
+docker run -d \
+  --name=cadvisor \
   --volume=/:/rootfs:ro \
   --volume=/var/run:/var/run:ro \
   --volume=/sys:/sys:ro \
   --volume=/var/lib/docker/:/var/lib/docker:ro \
   --volume=/dev/disk/:/dev/disk:ro \
   --publish=8080:8080 \
-  --name=cadvisor \
   --privileged \
   --device=/dev/kmsg \
-  --network mynetwork \
-  --restart always \
+  --restart=always \
   ghcr.io/google/cadvisor:v0.53.0
-</code></pre>
+```
 
-    <hr>
+#### Verification
+```bash
+docker ps | grep cadvisor
+curl http://localhost:8080/metrics
+```
 
-    <h3>5. Grafana</h3>
-    <ul>
-        <li><strong>Default Port:</strong> <code>3000</code></li>
-        <li><strong>Function:</strong> Metrics -> Query -> Visualization</li>
-    </ul>
+#### Access
+`http://localhost:8080` or `http://your-ip:8080`
 
-    <strong>Installation (Package Manager - Debian):</strong>
-<pre><code>sudo apt update -y && sudo apt install -y libfontconfig1 musl
+---
+
+### 5. Grafana
+
+**Default Port**: `3000`
+
+#### What is Grafana?
+Data visualization and analytics platform that queries metrics and renders beautiful dashboards.
+
+**Workflow**: Metrics → Query → Visualization
+
+#### Installation Steps (Debian)
+
+```bash
+# Install dependencies
+sudo apt update -y && sudo apt install -y libfontconfig1 musl
+
+# Download and install Grafana
 wget https://dl.grafana.com/grafana-enterprise/release/12.2.1/grafana-enterprise_12.2.1_18655849634_linux_amd64.deb
 sudo dpkg -i grafana-enterprise_12.2.1_18655849634_linux_amd64.deb
-</code></pre>
 
-    <strong>Installation (Package Manager - RedHat):</strong>
-<pre><code>sudo yum install -y https://dl.grafana.com/grafana-enterprise/release/12.2.1/grafana-enterprise_12.2.1_18655849634_linux_amd64.rpm
-</code></pre>
-
-    <strong>Hardening (TLS):</strong>
-<pre><code>sudo mkdir -p /etc/grafana/tls
-
-# Generate self-signed TLS certificate
-openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout grafana.key -out grafana.crt -subj "/CN=grafana.local"
-sudo cp grafana.{crt,key} /etc/grafana/tls/
+# Create TLS directory and certificates
+sudo mkdir -p /etc/grafana/tls
+openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
+  -keyout grafana.key -out grafana.crt \
+  -subj "/CN=grafana.local"
+sudo mv grafana.{crt,key} /etc/grafana/tls/
 
 # Set permissions
-sudo chown grafana. /etc/grafana/tls /etc/grafana/tls/*
+sudo chown grafana: /etc/grafana/tls /etc/grafana/tls/*
 sudo chmod 700 /etc/grafana/tls
 sudo chmod 644 /etc/grafana/tls/grafana.crt
 sudo chmod 600 /etc/grafana/tls/grafana.key
 
-# Open firewall port
+# Configure Grafana
+sudo vim /etc/grafana/grafana.ini
+sudo vim /usr/lib/systemd/system/grafana-server.service
+
+# Configure firewall
 sudo firewall-cmd --add-port=3000/tcp --permanent
 sudo firewall-cmd --reload
-</code></pre>
 
-    <strong>Service Management:</strong>
-    <ul>
-        <li>Edit <code>grafana.ini</code> at <code>/etc/grafana/grafana.ini</code> to enable HTTPS and set admin credentials.</li>
-        <li>The <code>grafana-server.service</code> file is managed by the package.</li>
-    </ul>
-<pre><code>sudo systemctl daemon-reload
+# Enable and start service
+sudo systemctl daemon-reload
 sudo systemctl enable --now grafana-server.service
-</code></pre>
+```
 
-    <hr>
+#### Installation Steps (RedHat)
 
-    <h2>5. Configuration Files</h2>
+```bash
+sudo yum install -y https://dl.grafana.com/grafana-enterprise/release/12.2.1/grafana-enterprise_12.2.1_18655849634_linux_amd64.rpm
+```
 
-    <p>This repository includes the following configuration files:</p>
-    <ul>
-        <li><code>/etc/prometheus/prometheus.yml</code>: Main Prometheus config, defines scrape jobs.</li>
-        <li><code>/etc/prometheus/web-config.yml</code>: Configures TLS and Basic Auth for the Prometheus UI.</li>
-        <li><code>/etc/prometheus/blackbox.yml</code>: Defines probe modules for Blackbox Exporter.</li>
-        <li><code>/etc/grafana/grafana.ini</code>: Main Grafana configuration (set up HTTPS, admin user, etc.).</li>
-        <li><code>/usr/lib/systemd/system/prometheus.service</code>: Systemd service file for Prometheus.</li>
-        <li><code>/usr/lib/systemd/system/node_exporter.service</code>: Systemd service file for Node Exporter.</li>
-        <li><code>/usr/lib/systemd/system/blackbox_exporter.service</code>: Systemd service file for Blackbox Exporter.</li>
-        <li><code>/usr/lib/systemd/system/grafana-server.service</code>: Systemd service file for Grafana.</li>
-    </ul>
+#### Verification
+```bash
+sudo systemctl status grafana-server.service
+sudo ss -tunlp | grep 3000
+```
 
-    <hr>
+#### Access
+`https://localhost:3000` or `https://your-ip:3000`
 
-    <h2>6. Key Tips & Troubleshooting</h2>
+**Default Credentials**: `admin` / (configured in grafana.ini)
 
-    <h3>✅ Always Check Service Status</h3>
-    <p>After starting any service, always check its status and listening ports:</p>
-<pre><code>sudo systemctl status &lt;service_name.service&gt;
-sudo ss -tunpla
-</code></pre>
+---
 
-    <h3>🖥️ Accessing Web Panels (with HTTPS enabled)</h3>
-    <ul>
-        <li><strong>Prometheus:</strong> <code>https://&lt;your-ip&gt;:9090</code></li>
-        <li><strong>Grafana:</strong> <code>https://&lt;your-ip&gt;:3000</code></li>
-        <li><strong>cAdvisor:</strong> <code>http://&lt;your-ip&gt;:8080</code></li>
-        <li><strong>Node Exporter Metrics:</strong> <code>http://&lt;your-ip&gt;:9100/metrics</code></li>
-        <li><strong>Blackbox Exporter:</strong> <code>http://&lt;your-ip&gt;:9115</code></li>
-    </ul>
+## 🔒 Security Hardening
 
-    <h3>💡 Systemd Service File Path</h3>
-    <p>Systemd unit files are loaded in this order:</p>
-    <ol>
-        <li><code>/etc/systemd/system</code></li>
-        <li><code>/run/systemd/system</code></li>
-        <li><code>/usr/lib/systemd/system</code></li>
-    </ol>
-    <p><strong>Recommendation:</strong> Use <code>/usr/lib/systemd/system</code>. If you <code>mask</code> and then <code>unmask</code> a service, the symlink in <code>/etc/systemd/system</code> is deleted, which can cause issues. Placing the file in <code>/usr/lib</code> is more resilient.</p>
+### TLS/SSL Configuration
+- ✅ All services configured with TLS certificates
+- ✅ Self-signed certificates for internal networks
+- ✅ Proper file permissions (600 for keys, 644 for certs)
 
-    <h3>💡 Prometheus Lockfile</h3>
-    <p>Prometheus creates a <code>lock</code> file in <code>/var/lib/prometheus</code> to prevent multiple instances from accessing the data directory. This file is automatically deleted on a clean <code>systemctl stop</code>. You can disable this with the <code>--storage.agent.no-lockfile</code> flag.</p>
+### Authentication
+- ✅ Prometheus: Basic auth with bcrypt hashed passwords
+- ✅ Grafana: Custom admin credentials
+- ✅ Restricted user privileges (dedicated service accounts)
 
-    <h3>💡 Missing Console Libraries in Prometheus</h3>
-    <p>Newer Prometheus versions no longer include the <code>console</code> and <code>console_library</code> directories. These were for old HTML/CSS-based dashboards, which are now obsolete. The focus is on using Grafana for all visualization.</p>
+### Firewall Rules
+```bash
+# Prometheus
+sudo firewall-cmd --add-port=9090/tcp --permanent
 
-    <h3>💡 Blackbox ICMP (Ping) Troubleshooting</h3>
-    <p>On some distributions, the <code>exporter</code> user cannot send ICMP packets.</p>
-    <ul>
-        <li><strong>Symptom:</strong> <code>probe_success 0</code> for ICMP modules.</li>
-        <li><strong>Solution:</strong> Allow unprivileged users to send pings.</li>
-    </ul>
-<pre><code># Check current setting
-sudo sysctl -a | grep ping_group_range
-    
-# Add the following line to /etc/sysctl.conf and run 'sudo sysctl -p'
-net.ipv4.ping_group_range=0 21474483647
-</code></pre>
+# Node Exporter
+sudo firewall-cmd --add-port=9100/tcp --permanent
 
-    <h3>💡 Using the Blackbox Exporter</h3>
-    <p>To probe a target, you must call the <code>/probe</code> endpoint with <code>module</code> and <code>target</code> parameters:</p>
-<pre><code># Example:
-http://127.0.0.1:9115/probe?module=icmp&target=google.com
-</code></pre>
-    <ul>
-        <li>Look for the metric <code>probe_success 1</code> (OK) or <code>probe_success 0</code> (NOK).</li>
-    </ul>
+# Blackbox Exporter
+sudo firewall-cmd --add-port=9115/tcp --permanent
 
-</body>
-</html>
+# Grafana
+sudo firewall-cmd --add-port=3000/tcp --permanent
+
+# Apply changes
+sudo firewall-cmd --reload
+```
+
+### File Permissions
+```bash
+# Configuration directories
+sudo chmod 700 /etc/prometheus
+sudo chmod 700 /etc/prometheus/tls
+sudo chmod 700 /etc/grafana/tls
+
+# Certificate files
+sudo chmod 644 /etc/prometheus/tls/*.crt
+sudo chmod 600 /etc/prometheus/tls/*.key
+sudo chmod 644 /etc/grafana/tls/*.crt
+sudo chmod 600 /etc/grafana/tls/*.key
+
+# Data directories
+sudo chmod 755 /var/lib/prometheus
+```
+
+### Systemd Service Hardening
+- Dedicated non-root users (`prometheus`, `exporter`, `grafana`)
+- Locked down service capabilities
+- No shell access (`/sbin/nologin`)
+- Proper working directories and runtime permissions
+
+---
+
+## ✅ Verification
+
+### Check Service Status
+```bash
+# All services
+sudo systemctl status prometheus.service
+sudo systemctl status node_exporter.service
+sudo systemctl status blackbox_exporter.service
+sudo systemctl status grafana-server.service
+
+# Docker container
+docker ps | grep cadvisor
+```
+
+### Check Network Ports
+```bash
+sudo ss -tunlp | grep -E '(9090|9100|9115|3000|8080)'
+```
+
+### Test Endpoints
+```bash
+# Prometheus
+curl -k -u admin:abbaseboazar https://localhost:9090/-/healthy
+
+# Node Exporter
+curl http://localhost:9100/metrics
+
+# Blackbox Exporter
+curl http://localhost:9115/probe?module=icmp_v4&target=localhost
+
+# cAdvisor
+curl http://localhost:8080/metrics
+
+# Grafana
+curl -k https://localhost:3000/api/health
+```
+
+---
+
+## 📄 Configuration Files
+
+### Required Configuration Files
+
+| File | Location | Purpose |
+|------|----------|---------|
+| `prometheus.yml` | `/etc/prometheus/` | Main Prometheus configuration |
+| `web-config.yml` | `/etc/prometheus/` | TLS and authentication settings |
+| `blackbox.yml` | `/etc/prometheus/` | Blackbox probe configurations |
+| `grafana.ini` | `/etc/grafana/` | Grafana server settings |
+| `prometheus.service` | `/usr/lib/systemd/system/` | Prometheus systemd unit |
+| `node_exporter.service` | `/usr/lib/systemd/system/` | Node Exporter systemd unit |
+| `blackbox_exporter.service` | `/usr/lib/systemd/system/` | Blackbox Exporter systemd unit |
+| `grafana-server.service` | `/usr/lib/systemd/system/` | Grafana systemd unit |
+
+**Note**: Configuration file templates are included in this repository.
+
+---
+
+## 💡 Pro Tips
+
+### Systemd Service Files
+- **Recommended Path**: `/usr/lib/systemd/system/`
+- **Why?**: Using `systemctl mask` on services in `/etc/systemd/system/` can cause issues when unmounting (deletes the service file)
+
+### Lock Files
+- Prometheus creates lock files in `/var/lib/prometheus` to prevent multiple instances
+- Automatically removed when service stops
+- Use `--storage.agent.no-lockfile` to disable (not recommended)
+
+### Console Libraries (Deprecated)
+- Older Prometheus versions included `console_templates` and `console_libraries`
+- Removed in favor of Grafana for visualization
+- Simplified project maintenance
+
+### URL Testing
+Always include the `target` parameter when testing Blackbox Exporter:
+```bash
+# ❌ Wrong
+http://127.0.0.1:9115/probe
+
+# ✅ Correct
+http://127.0.0.1:9115/probe?module=icmp&target=localhost
+```
+
+---
+
+## 📊 Example Scrape Configurations
+
+### Multi-Job Setup
+```yaml
+scrape_configs:
+  - job_name: 'Prometheus Server'
+    static_configs:
+      - targets: ['localhost:9090']
+  
+  - job_name: 'Node Exporter - Local'
+    static_configs:
+      - targets: ['localhost:9100']
+  
+  - job_name: 'Node Exporter - Remote'
+    static_configs:
+      - targets: ['192.168.56.111:9100']
+  
+  - job_name: 'Blackbox - ICMP Probes'
+    metrics_path: /probe
+    params:
+      module: [icmp_v4]
+    static_configs:
+      - targets:
+          - 4.2.2.4
+          - www.example.com
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__address__]
+        target_label: instance
+      - target_label: __address__
+        replacement: 127.0.0.1:9115
+  
+  - job_name: 'cAdvisor'
+    static_configs:
+      - targets: ['172.16.52.40:8080']
+```
+
+---
+
+## 🤝 Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.
+
+---
+
+## 📝 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+---
+
+## 📞 Support
+
+For issues and questions:
+- Open an issue in this repository
+- Check Prometheus documentation: https://prometheus.io/docs
+- Check Grafana documentation: https://grafana.com/docs
+
+---
+
+**Made with ❤️ for the DevOps Community**
