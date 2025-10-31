@@ -4,7 +4,6 @@ A comprehensive production-ready guide for deploying and configuring Prometheus 
 
 [![Prometheus](https://img.shields.io/badge/Prometheus-v3.5.0-orange?logo=prometheus)](https://prometheus.io/)
 [![Grafana](https://img.shields.io/badge/Grafana-v12.2.1-orange?logo=grafana)](https://grafana.com/)
-[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 ---
 
@@ -44,10 +43,10 @@ Monitoring is the systematic observation and recording of system metrics to ensu
 
 ### Types of Monitoring
 
-**Blackbox Monitoring**
+**Blackbox Monitoring :**
 External monitoring that tests services from the user's perspective without internal system knowledge.
 
-**Whitebox Monitoring**
+**Whitebox Monitoring :**
 Internal monitoring that uses system metrics and logs to understand service behavior.
 
 ### What are Metrics?
@@ -93,24 +92,7 @@ Ensure your organization has:
 
 ### Prometheus Architecture Overview
 
-```
-┌─────────────┐     ┌──────────────┐     ┌─────────────┐
-│   Targets   │────▶│  Prometheus  │────▶│   Grafana   │
-│  (Exporters)│     │    Server    │     │ (Visualize) │
-└─────────────┘     └──────────────┘     └─────────────┘
-       │                    │
-       │                    ▼
-       │            ┌──────────────┐
-       │            │ AlertManager │
-       │            └──────────────┘
-       ▼
-┌─────────────────────────────────────┐
-│  • Node Exporter (System Metrics)   │
-│  • Blackbox Exporter (Probing)      │
-│  • cAdvisor (Container Metrics)     │
-│  • Custom Exporters                 │
-└─────────────────────────────────────┘
-```
+<img width="1351" height="811" alt="image" src="https://github.com/user-attachments/assets/45445b1d-42a9-4c48-b6bd-ca54f81232aa" />
 
 ---
 
@@ -145,21 +127,21 @@ sudo useradd -rs /sbin/nologin prometheus
 sudo mkdir -p /etc/prometheus /etc/prometheus/tls /var/lib/prometheus
 
 # Set permissions
-sudo chown prometheus: /etc/prometheus /etc/prometheus/tls /var/lib/prometheus
+sudo chown prometheus. /etc/prometheus /etc/prometheus/tls /var/lib/prometheus
 sudo chmod 700 /etc/prometheus /etc/prometheus/tls
 sudo chmod 755 /var/lib/prometheus
 
 # Install binaries
 cd prometheus-3.5.0.linux-amd64
 sudo mv prometheus promtool /usr/local/bin
-sudo chown prometheus: /usr/local/bin/prom*
+sudo chown prometheus. /usr/local/bin/prom*
 
 # Generate TLS certificates
 openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
   -keyout prometheus.key -out prometheus.crt \
   -subj "/CN=prometheus.local"
 sudo mv prometheus.crt prometheus.key /etc/prometheus/tls/
-sudo chown prometheus: /etc/prometheus/tls/prometheus.{crt,key}
+sudo chown prometheus. /etc/prometheus/tls/prometheus.{crt,key}
 sudo chmod 644 /etc/prometheus/tls/prometheus.crt
 sudo chmod 600 /etc/prometheus/tls/prometheus.key
 
@@ -184,7 +166,7 @@ sudo systemctl enable --now prometheus.service
 #### Verification
 ```bash
 sudo systemctl status prometheus.service
-sudo ss -tunlp | grep 9090
+sudo ss -tunpla | grep 9090
 ```
 
 #### Access
@@ -214,7 +196,7 @@ sudo useradd -rs /sbin/nologin exporter
 # Install binary
 cd node_exporter-1.10.2.linux-amd64
 sudo mv node_exporter /usr/local/bin
-sudo chown exporter: /usr/local/bin/node_exporter
+sudo chown exporter. /usr/local/bin/node_exporter
 sudo chmod 755 /usr/local/bin/node_exporter
 
 # Create systemd service
@@ -232,7 +214,7 @@ sudo systemctl enable --now node_exporter.service
 #### Verification
 ```bash
 sudo systemctl status node_exporter.service
-sudo ss -tunlp | grep 9100
+sudo ss -tunpla | grep 9100
 ```
 
 #### Access
@@ -257,7 +239,7 @@ tar -xvf blackbox_exporter-0.27.0.linux-amd64.tar.gz
 # Install binary and configuration
 cd blackbox_exporter-0.27.0.linux-amd64
 sudo mv blackbox_exporter /usr/local/bin
-sudo chown exporter: /usr/local/bin/blackbox_exporter
+sudo chown exporter. /usr/local/bin/blackbox_exporter
 sudo chmod 755 /usr/local/bin/blackbox_exporter
 
 sudo mv blackbox.yml /etc/prometheus
@@ -310,7 +292,7 @@ http://127.0.0.1:9115/probe?module=http_2xx&target=https://example.com
 #### Verification
 ```bash
 sudo systemctl status blackbox_exporter.service
-sudo ss -tunlp | grep 9115
+sudo ss -tunpla | grep 9115
 ```
 
 #### Access
@@ -340,6 +322,7 @@ docker run -d \
   --device=/dev/kmsg \
   --restart=always \
   ghcr.io/google/cadvisor:v0.53.0
+# or we can use google/cadvisor:canary image
 ```
 
 #### Verification
@@ -380,7 +363,7 @@ openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
 sudo mv grafana.{crt,key} /etc/grafana/tls/
 
 # Set permissions
-sudo chown grafana: /etc/grafana/tls /etc/grafana/tls/*
+sudo chown grafana. /etc/grafana/tls /etc/grafana/tls/*
 sudo chmod 700 /etc/grafana/tls
 sudo chmod 644 /etc/grafana/tls/grafana.crt
 sudo chmod 600 /etc/grafana/tls/grafana.key
@@ -407,7 +390,7 @@ sudo yum install -y https://dl.grafana.com/grafana-enterprise/release/12.2.1/gra
 #### Verification
 ```bash
 sudo systemctl status grafana-server.service
-sudo ss -tunlp | grep 3000
+sudo ss -tunpla | grep 3000
 ```
 
 #### Access
@@ -425,8 +408,8 @@ sudo ss -tunlp | grep 3000
 - ✅ Proper file permissions (600 for keys, 644 for certs)
 
 ### Authentication
-- ✅ Prometheus: Basic auth with bcrypt hashed passwords
-- ✅ Grafana: Custom admin credentials
+- ✅ prometheus: Basic auth with bcrypt hashed passwords
+- ✅ grafana: Custom admin credentials
 - ✅ Restricted user privileges (dedicated service accounts)
 
 ### Firewall Rules
@@ -488,7 +471,7 @@ docker ps | grep cadvisor
 
 ### Check Network Ports
 ```bash
-sudo ss -tunlp | grep -E '(9090|9100|9115|3000|8080)'
+sudo ss -tunpla | grep -E '(9090|9100|9115|3000|8080)'
 ```
 
 ### Test Endpoints
@@ -547,7 +530,7 @@ curl -k https://localhost:3000/api/health
 - Simplified project maintenance
 
 ### URL Testing
-Always include the `target` parameter when testing Blackbox Exporter:
+Always include the `target` parameter when testing Blackbox exporter.
 ```bash
 # ❌ Wrong
 http://127.0.0.1:9115/probe
@@ -596,27 +579,12 @@ scrape_configs:
       - targets: ['172.16.52.40:8080']
 ```
 
----
-
-## 🤝 Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.
-
----
-
-## 📝 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ---
 
 ## 📞 Support
 
 For issues and questions:
-- Open an issue in this repository
 - Check Prometheus documentation: https://prometheus.io/docs
 - Check Grafana documentation: https://grafana.com/docs
 
----
-
-**Made with ❤️ for the DevOps Community**
