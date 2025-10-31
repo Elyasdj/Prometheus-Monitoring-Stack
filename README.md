@@ -92,7 +92,7 @@ Ensure your organization has:
 
 ### Prometheus Architecture Overview
 
-<img width="1351" height="811" alt="image" src="https://github.com/user-attachments/assets/45445b1d-42a9-4c48-b6bd-ca54f81232aa" />
+<img width="1280" height="720" alt="image" src="https://github.com/user-attachments/assets/fb47e30e-8f1f-4c4a-bf47-9305d46a0a2c" />
 
 ---
 
@@ -151,7 +151,7 @@ htpasswd -nBb admin abbaseboazar  # Generate password hash
 
 # Create configuration files
 sudo -u prometheus vim /etc/prometheus/prometheus.yml
-sudo vim /etc/prometheus/web-config.yml
+sudo vim /etc/prometheus/web-config.yml  # if you want to set SSL/TLS, User/Pass for login you can add it to this file
 sudo vim /usr/lib/systemd/system/prometheus.service
 
 # Configure firewall
@@ -369,7 +369,7 @@ sudo chmod 644 /etc/grafana/tls/grafana.crt
 sudo chmod 600 /etc/grafana/tls/grafana.key
 
 # Configure Grafana
-sudo vim /etc/grafana/grafana.ini
+sudo vim /etc/grafana/grafana.ini  # if you want to set SSL/TLS for login you can add it to this file
 sudo vim /usr/lib/systemd/system/grafana-server.service
 
 # Configure firewall
