@@ -591,9 +591,9 @@ For issues and questions:
 ---
 
 <div align="center">
-  <sub>Create by Elyasdj</sub>
+  <sub>Created by Elyasdj</sub>
 </div>
 <div align="center">
-  <sub>Guide by Mahdi Sardari</sub>
+  <sub>Guided by Mahdi Sardari</sub>
 </div>
 
