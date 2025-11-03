@@ -588,3 +588,12 @@ For issues and questions:
 - Check Prometheus documentation: https://prometheus.io/docs
 - Check Grafana documentation: https://grafana.com/docs
 
+---
+
+<div align="center">
+  <sub>Create by Elyasdj</sub>
+</div>
+<div align="center">
+  <sub>Guide by Mahdi Sardari</sub>
+</div>
+
