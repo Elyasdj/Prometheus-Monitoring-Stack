@@ -516,6 +516,14 @@ curl -k https://localhost:3000/api/health
 ## 💡 Pro Tips
 
 ### Systemd Service Files
+- Unit files (service files) can be stored in three places (in order)
+
+|             RH            |         DEB         |
+|---------------------------|---------------------|
+| /etc/systemd/system       | /etc/systemd/system |
+| /run/systemd/system       | /run/systemd/system |
+| /usr/lib/systemd/system   | /lib/systemd/system |
+
 - **Recommended Path**: `/usr/lib/systemd/system/`
 - **Why?**: Using `systemctl mask` on services in `/etc/systemd/system/` can cause issues when unmounting (deletes the service file)
 
