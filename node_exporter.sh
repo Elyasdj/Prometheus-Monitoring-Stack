@@ -1,33 +1,75 @@
 #!/bin/bash
-
 set -e
 
-NODE_EXPORTER_VERSION="1.10.2"
-ARCHIVE="node_exporter-${NODE_EXPORTER_VERSION}.linux-amd64.tar.gz"
-DIR="node_exporter-${NODE_EXPORTER_VERSION}.linux-amd64"
+GREEN="\e[32m"
+RED="\e[31m"
+YELLOW="\e[33m"
+BLUE="\e[34m"
+NC="\e[0m"
+
+USER="exporter"
 BIN_PATH="/usr/local/bin/node_exporter"
 SERVICE_FILE="/usr/lib/systemd/system/node_exporter.service"
+SCRIPT_NAME=$(basename "$0")
 
-# Check archive exists
-if [[ ! -f "$ARCHIVE" ]]; then
-    echo "❌ File $ARCHIVE not found in current directory"
+echo -e "${BLUE}=========================================${NC}"
+echo -e "${BLUE}   🚀 Offline Node Exporter Installer    ${NC}"
+echo -e "${BLUE}=========================================${NC}"
+
+ARCHIVE=$(ls node_exporter-*.linux-*.tar.gz 2>/dev/null | head -n1)
+if [[ -z "$ARCHIVE" ]]; then
+    echo -e "${RED}❌ No node_exporter archive found${NC}"
+    echo -e "${YELLOW}Expected: node_exporter-<version>.linux-<arch>.tar.gz${NC}"
     exit 1
 fi
+echo -e "${GREEN}✅ Found archive: $ARCHIVE${NC}"
 
-echo "==> Extracting Node Exporter"
-tar -xvf "$ARCHIVE"
+#########################################
+#               Extract                 #
+#########################################
 
-echo "==> Creating exporter user"
-if ! id exporter &>/dev/null; then
-    useradd -rs /sbin/nologin exporter
+VERSION=$(echo "$ARCHIVE" | sed -E 's/node_exporter-([0-9.]+)\.linux-.*/\1/')
+ARCH=$(echo "$ARCHIVE" | sed -E 's/.*\.linux-([^.]+)\.tar\.gz/\1/')
+DIR="node_exporter-${VERSION}.linux-${ARCH}"
+
+echo -e "${GREEN}📦 Version: $VERSION${NC}"
+echo -e "${GREEN}🖥 Architecture: $ARCH${NC}"
+
+echo -e "${BLUE}📂 Extracting archive...${NC}"
+tar -xvf "$ARCHIVE" >/dev/null
+echo -e "${GREEN}✅ Archive extracted${NC}"
+
+#########################################
+#              Create user              #
+#########################################
+
+echo -e "${BLUE}👤 Creating user: $USER${NC}"
+if ! id $USER &>/dev/null; then
+    useradd -rs /sbin/nologin $USER
+    echo -e "${GREEN}✅ User created${NC}"
+else
+    echo -e "${YELLOW}⚠️ User already exists${NC}"
 fi
 
-echo "==> Installing binary"
-mv "$DIR/node_exporter" "$BIN_PATH"
-chown exporter:exporter "$BIN_PATH"
-chmod 755 "$BIN_PATH"
+#########################################
+#            Install binary             #
+#########################################
 
-echo "==> Creating systemd service"
+echo -e "${BLUE}⚙️ Installing binary...${NC}"
+
+# ✅ FIX: ensure destination directory exists
+mkdir -p "$(dirname "$BIN_PATH")"
+
+mv "$DIR/node_exporter" "$BIN_PATH"
+chown $USER:$USER "$BIN_PATH"
+chmod 755 "$BIN_PATH"
+echo -e "${GREEN}✅ Binary installed at $BIN_PATH${NC}"
+
+#########################################
+#         Create systemd service        #
+#########################################
+
+echo -e "${BLUE}📝 Creating systemd service...${NC}"
 cat <<EOF > "$SERVICE_FILE"
 [Unit]
 Description=Prometheus Node Exporter
@@ -35,36 +77,54 @@ Wants=network-online.target
 After=network-online.target
 
 [Service]
-User=exporter
-Group=exporter
+User=$USER
+Group=$USER
 Type=simple
 ExecStart=$BIN_PATH
 
 [Install]
 WantedBy=multi-user.target
 EOF
+echo -e "${GREEN}✅ Service file created at $SERVICE_FILE${NC}"
 
-echo "==> Reloading systemd"
+echo -e "${BLUE}🔄 Reloading systemd...${NC}"
 systemctl daemon-reexec
 systemctl daemon-reload
 
-echo "==> Configuring firewall (port 9100)"
-if systemctl is-active --quiet firewalld; then
-    firewall-cmd --add-port=9100/tcp --permanent
-    firewall-cmd --reload
-else
-    echo "⚠️ firewalld is not running, skipping firewall step"
-fi
+echo -e "${BLUE}▶️ Enabling and starting service...${NC}"
+systemctl enable --now node_exporter
 
-echo "==> Enabling and starting service"
-systemctl enable --now node_exporter.service
+#########################################
+#          Minimal status check         #
+#########################################
 
-echo "==> Verification"
-systemctl status node_exporter.service --no-pager
-ss -tunpla | grep 9100 || echo "⚠️ Port 9100 is not listening"
+echo -e "${BLUE}🔍 Verifying service...${NC}"
+systemctl is-active --quiet node_exporter && \
+echo -e "${GREEN}✅ SERVICE: UP${NC}" || \
+echo -e "${RED}❌ SERVICE: DOWN${NC}"
 
-echo "==> Cleaning up installation files"
-rm -rf "$ARCHIVE" "$DIR"
+ss -tunlp | grep -q ":9100" && \
+echo -e "${GREEN}✅ PORT 9100: LISTENING${NC}" || \
+echo -e "${RED}❌ PORT 9100: NOT LISTENING${NC}"
 
-echo "🧹 Cleanup completed"
-echo "✅ Node Exporter installed successfully"
+IP=$(hostname -I | awk '{print $1}')
+
+echo -e "${GREEN}"
+echo "===================================================="
+echo "      🎉 Node Exporter Installed Successfully       "
+echo "===================================================="
+echo " 🌐 Metrics URL: http://$IP:9100/metrics"
+echo " 📦 Version:     $VERSION"
+echo " 🖥  Arch:        $ARCH"
+echo " 👤 User:        $USER"
+echo " ⚙  Binary:      $BIN_PATH"
+echo "===================================================="
+echo -e "${NC}"
+
+#########################################
+#               Clean Up                #
+#########################################
+
+echo -e "${BLUE}🧹 Cleaning up archive, extracted dir, and script...${NC}"
+rm -rf "$ARCHIVE" "$DIR" "$SCRIPT_NAME"
+echo -e "${GREEN}✅ Cleanup completed${NC}"
